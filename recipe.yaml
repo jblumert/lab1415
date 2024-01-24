@@ -1,0 +1,48 @@
+apiVersion: spp-data-protection.isf.ibm.com/v1alpha1
+kind: Recipe
+metadata:
+  name: hook-recipe00
+  namespace: ibm-spectrum-fusion-ns
+spec:
+  appType: test
+  groups:
+    - name: group_volumes
+      type: volume
+    - name: group_resources 
+      type: resource
+  hooks:
+  - name: backup-hook
+    namespace: lab1
+    type: exec
+    labelSelector: app=filebrowser
+    singlePodOnly: true
+    ops:
+    - name: start
+      command: >
+        ["/bin/mkdir", "-p", "/srv/backup"]
+    - name: pre
+      command: >
+        ["/bin/sh", "-c", "echo recipe backup pre.hook $(TZ=PST8 date) >> /srv/backup.txt"]
+    - name: post-backup
+      command: >
+        ["/bin/sh", "-c", "echo recipe backup post.hook $(TZ=PST8 date) >> /srv/backup.txt"]
+    - name: post-restore
+      command: >
+        ["/bin/sh", "-c", "echo recipe restore post.hook $(TZ=PST8 date) >> /srv/backup.txt"]
+    - name: post-restore-additional
+      command: >
+        ["/bin/sh", "-c", "echo recipe restore **ADDITIONAL**  post.hook $(TZ=PST8 date) >> /srv/backup.txt"]
+  workflows:
+  - name: backup
+    sequence:
+    - hook: backup-hook/start
+    - hook: backup-hook/pre
+    - group: group_resources
+    - group: group_volumes 
+    - hook: backup-hook/post-backup
+  - name: restore
+    sequence:
+    - group: group_volumes
+    - group: group_resources
+    - hook: backup-hook/post-restore
+    - hook: backup-hook/post-restore-additional
